@@ -1,0 +1,90 @@
+---
+# Install AWS CLI v2
+
+- name: Check AWS CLI version.
+  shell: >
+    set -o pipefail && {{ awscli_bin_dir }}/aws --version |
+    grep -Eo "[0-9]{1,}(\.[0-9]{1,}){0,}" | head -n1
+  args:
+    executable: /usr/bin/bash
+  changed_when: false
+  failed_when: false
+  register: awscli_curr_ver
+
+- name: Filter current version stdout.
+  set_fact:
+    awscli_current_ver: '{{ awscli_curr_ver.stdout |
+    regex_search("[0-9]{1,}(\.[0-9]{1,}){0,2}") }}'
+  when: awscli_curr_ver.rc == 0
+
+- name: Filter desired AWS CLI version.
+  set_fact:
+    awscli_desired_ver: '{{ awscli_version |
+    regex_search("[0-9]{1,}(\.[0-9]{1,}){0,2}") }}'
+  when: awscli_version is defined
+
+- name: Basic tasks.
+  block:
+    - name: Create missing directories.
+      block:
+        - name: Get status of directories.
+          stat:
+            path: '{{ item }}'
+          register: awscli_dirstatus
+          with_items:
+            - '{{ awscli_download_dir }}'
+            - '{{ awscli_install_dir }}'
+            - '{{ awscli_bin_dir }}'
+
+        - name: Create directories in a loop.
+          include_tasks: create-dir.yaml
+          vars:
+            dir_path: '{{ item.item }}'
+          with_items: '{{ awscli_dirstatus.results }}'
+          when: not item.stat.exists
+
+    - name: Update status of directories.
+      stat:
+        path: '{{ item }}'
+      register: awscli_dirstatus
+      with_items:
+        - '{{ awscli_download_dir }}'
+        - '{{ awscli_install_dir }}'
+        - '{{ awscli_bin_dir }}'
+
+    - name: Download and extract the archive.
+      unarchive:
+        src: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64\
+        {{ '-' + awscli_desired_ver if awscli_desired_ver is defined }}.zip"
+        dest: '{{ awscli_download_dir }}'
+        remote_src: true
+      become: '{{ not awscli_dirstatus.results[0].stat.writeable }}'
+
+    - name: Install AWS CLI.
+      command: '{{ awscli_download_dir }}/aws/install
+      --install-dir {{ awscli_install_dir }} --bin-dir {{ awscli_bin_dir }}'
+      become: '{{ not (awscli_dirstatus.results[1].stat.writeable
+      and awscli_dirstatus.results[2].stat.writeable) }}'
+
+  # Conditions for starting basic tasks: AWS CLI is not installed at the
+  # desired/default bin directory path, or the installed and desired versions
+  # do not match, or a force upgrade to the latest version is defined (in which
+  # case the desired version should not be determined).
+  when: >
+    awscli_curr_ver.rc != 0
+    or (awscli_desired_ver is defined
+    and awscli_current_ver is
+    version(awscli_desired_ver, '!=', version_type='strict'))
+    or (update_apps is defined
+    and ('all' in update_apps or 'awscli' in update_apps))
+
+- name: Ensure the binay path is in the system PATH.
+  lineinfile:
+    dest: '{{ item }}'
+    line: '[[ ":$PATH:" != *":{{ awscli_bin_dir }}:"* ]] &&
+    export PATH="$PATH:{{ awscli_bin_dir }}"'
+    state: present
+    backup: false
+  with_items: '{{ awscli_env_files_to_modify }}'
+  failed_when: false
+  when: awscli_env_files_to_modify | length > 0
