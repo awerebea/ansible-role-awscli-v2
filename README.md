@@ -20,6 +20,9 @@ Available variables are listed below, along with default values (see `defaults/m
     # If not specified, /usr/local/bin is used.
     awscli_bin_dir: $HOME/.local/bin
 
+    # If the directory for downloading and extracting the installation archive is not specified, /tmp is used.
+    awscli_download_dir: $HOME/Downloads
+
     # List of user environment files to add conditional export to the system PATH of a directory with symbolic links.
     # Only existing files with write access for the current ansible_user will be processed.
     # If not specified, empty list is used.
