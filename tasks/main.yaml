@@ -66,6 +66,17 @@
       become: '{{ not (awscli_dirstatus.results[1].stat.writeable
       and awscli_dirstatus.results[2].stat.writeable) }}'
 
+    - name: Ensure the binay path is in the system PATH.
+      lineinfile:
+        dest: '{{ item }}'
+        line: '[[ ":$PATH:" != *":{{ awscli_bin_dir }}:"* ]] &&
+        export PATH="$PATH:{{ awscli_bin_dir }}"'
+        state: present
+        backup: false
+      with_items: '{{ awscli_env_files_to_modify }}'
+      failed_when: false
+      when: awscli_env_files_to_modify | length > 0
+
   # Conditions for starting basic tasks: AWS CLI is not installed at the
   # desired/default bin directory path, or the installed and desired versions
   # do not match, or a force upgrade to the latest version is defined (in which
@@ -76,15 +87,5 @@
     and awscli_current_ver is
     version(awscli_desired_ver, '!=', version_type='strict'))
     or (update_apps is defined
-    and ('all' in update_apps or 'awscli' in update_apps))
-
-- name: Ensure the binay path is in the system PATH.
-  lineinfile:
-    dest: '{{ item }}'
-    line: '[[ ":$PATH:" != *":{{ awscli_bin_dir }}:"* ]] &&
-    export PATH="$PATH:{{ awscli_bin_dir }}"'
-    state: present
-    backup: false
-  with_items: '{{ awscli_env_files_to_modify }}'
-  failed_when: false
-  when: awscli_env_files_to_modify | length > 0
+    and ('all' in update_apps or 'aws' in update_apps | lower
+    or 'awscli' in update_apps | lower))
