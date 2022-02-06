@@ -62,7 +62,8 @@
 
     - name: Install AWS CLI.
       command: '{{ awscli_download_dir }}/aws/install
-      --install-dir {{ awscli_install_dir }} --bin-dir {{ awscli_bin_dir }}'
+      --install-dir {{ awscli_install_dir }} --bin-dir {{ awscli_bin_dir }}
+      {{ "--update" if awscli_curr_ver.rc == 0 }}'
       become: '{{ not (awscli_dirstatus.results[1].stat.writeable
       and awscli_dirstatus.results[2].stat.writeable) }}'
 
