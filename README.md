@@ -31,6 +31,16 @@ Available variables are listed below, along with default values (see `defaults/m
       - $HOME/.bashrc
       - $HOME/.zshenv
 
+**NOTE:** By default, the base tasks of a role are skipped if the application is already installed in the desired
+<br />bin directory (linked there) and no version upgrade is required.
+<br />&nbsp;&nbsp;&nbsp;&nbsp;If you want to add a conditional export to the system `PATH` of a directory with the app binary, after the Playbook
+<br />has already been run once, you can force the launch base role tasks by defining the `update_apps` variable
+<br />and adding `awscli`, `aws` to the list. For example:
+``` bash
+$ ansible-playbook main.yaml -e "update_apps=[awscli]"
+```
+This approach is also used to force an update to the latest available release.
+
 ## Dependencies
 
 `unzip` - UNZIP(1) Linux command line utility for the ansible built-in `unarchive` module to work.
